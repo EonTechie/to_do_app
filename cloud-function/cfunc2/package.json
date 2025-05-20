@@ -1,6 +1,7 @@
 {
-  "name": "todo-cloud-function",
+  "name": "completed-todos-function",
   "version": "1.0.0",
+  "main": "index.js",
   "dependencies": {
     "mongodb": "^5.0.0"
   }

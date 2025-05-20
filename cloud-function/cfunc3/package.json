@@ -1,0 +1,10 @@
+{
+  "name": "notify-tasks-function",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "mongodb": "^5.0.0",
+    "nodemailer": "^6.9.0",
+    "dotenv": "^16.0.0"
+  }
+}
