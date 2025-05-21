@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const API_URL = 'http://34.59.215.211:4000/todos';
+const API_URL = 'http://34.72.124.68:4000/todos';
 
 const PRIORITIES = ['Low', 'Medium', 'High'];
 
