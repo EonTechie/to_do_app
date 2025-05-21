@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 
-const API_URL = 'http://34.173.185.22:4000/todos';
+const API_URL = 'http://34.59.215.211:4000/todos';
 
-const PRIORITIES = ['Düşük', 'Orta', 'Yüksek'];
+const PRIORITIES = ['Low', 'Medium', 'High'];
 
 function App() {
   const [todos, setTodos] = useState([]);
@@ -12,7 +12,7 @@ function App() {
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [priority, setPriority] = useState('Orta');
+  const [priority, setPriority] = useState('Medium');
   const [completedCount, setCompletedCount] = useState(0);
   const [completedTodos, setCompletedTodos] = useState([]);
 
@@ -20,7 +20,7 @@ function App() {
     fetch(API_URL)
       .then(res => res.json())
       .then(setTodos);
-    // İlk yüklemede Cloud Function'lardan veri çek
+    // Fetch completed count and completed todos from Cloud Functions on mount
     fetch('https://us-central1-extreme-wind-457613-b2.cloudfunctions.net/countCompletedTodos')
       .then(res => res.json())
       .then(data => setCompletedCount(data.completedCount || 0));
@@ -45,8 +45,8 @@ function App() {
     setTodos([...todos, newTodo]);
     setTitle('');
     setDueDate('');
-    setPriority('Orta');
-    // Cloud Function'lardan güncel veriyi çek
+    setPriority('Medium');
+    // Fetch updated completed count and completed todos
     fetch('https://us-central1-extreme-wind-457613-b2.cloudfunctions.net/countCompletedTodos')
       .then(res => res.json())
       .then(data => setCompletedCount(data.completedCount || 0));
@@ -61,11 +61,11 @@ function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ completed: !completed })
     });
-    // Backend güncellemesi bittikten sonra tekrar fetch et
+    // Fetch updated todos
     fetch(API_URL)
       .then(res => res.json())
       .then(setTodos);
-    // Cloud Function'lardan güncel veriyi çek
+    // Fetch updated completed count and completed todos
     fetch('https://us-central1-extreme-wind-457613-b2.cloudfunctions.net/countCompletedTodos')
       .then(res => res.json())
       .then(data => setCompletedCount(data.completedCount || 0));
@@ -77,7 +77,7 @@ function App() {
   const deleteTodo = async (id) => {
     await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
     setTodos(todos.filter(todo => todo._id !== id));
-    // Cloud Function'lardan güncel veriyi çek
+    // Fetch updated completed count and completed todos
     fetch('https://us-central1-extreme-wind-457613-b2.cloudfunctions.net/countCompletedTodos')
       .then(res => res.json())
       .then(data => setCompletedCount(data.completedCount || 0));
@@ -133,7 +133,7 @@ function App() {
           <input
             value={title}
             onChange={e => setTitle(e.target.value)}
-            placeholder="Yeni görev ekle..."
+            placeholder="Add a new task..."
             style={{
               flex: 2,
               padding: 12,
@@ -184,7 +184,7 @@ function App() {
               transition: 'background 0.2s'
             }}
           >
-            Ekle
+            Add
           </button>
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -198,7 +198,7 @@ function App() {
               padding: 8,
               fontWeight: 600,
               cursor: 'pointer'
-            }}>Tümü</button>
+            }}>All</button>
           <button onClick={() => setFilter('active')}
             style={{
               flex: 1,
@@ -209,7 +209,7 @@ function App() {
               padding: 8,
               fontWeight: 600,
               cursor: 'pointer'
-            }}>Aktif</button>
+            }}>Active</button>
           <button onClick={() => setFilter('completed')}
             style={{
               flex: 1,
@@ -220,12 +220,12 @@ function App() {
               padding: 8,
               fontWeight: 600,
               cursor: 'pointer'
-            }}>Tamamlanan</button>
+            }}>Completed</button>
         </div>
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Görevlerde ara..."
+          placeholder="Search tasks..."
           style={{
             width: '100%',
             padding: 10,
@@ -236,13 +236,13 @@ function App() {
           }}
         />
         <div style={{ marginBottom: 12, color: '#6366f1', fontWeight: 600 }}>
-          Toplam Görev: {filteredTodos.length}
+          Total Tasks: {filteredTodos.length}
         </div>
         <div style={{ color: '#22c55e', fontWeight: 600, marginBottom: 8 }}>
-          Tamamlanan Görev Sayısı: {completedCount}
+          Completed Task Count: {completedCount}
         </div>
         <div style={{ color: '#6366f1', fontWeight: 600, marginBottom: 8 }}>
-          Tamamlanan Görevler:
+          Completed Tasks:
           <ul>
             {completedTodos.map(todo => (
               <li key={todo._id}>{todo.title}</li>
@@ -286,7 +286,7 @@ function App() {
                       padding: '6px 12px',
                       fontWeight: 600,
                       cursor: 'pointer'
-                    }}>Kaydet</button>
+                    }}>Save</button>
                   <button onClick={() => setEditingId(null)}
                     style={{
                       marginLeft: 4,
@@ -297,11 +297,11 @@ function App() {
                       padding: '6px 12px',
                       fontWeight: 600,
                       cursor: 'pointer'
-                    }}>Vazgeç</button>
+                    }}>Cancel</button>
                 </>
               ) : (
                 <>
-            <span
+                  <span
                     style={{
                       flex: 1,
                       fontSize: 18,
@@ -310,8 +310,8 @@ function App() {
                       cursor: 'pointer',
                       transition: 'color 0.2s'
                     }}
-            >
-              {todo.title}
+                  >
+                    {todo.title}
                     {todo.dueDate && (
                       <span style={{
                         marginLeft: 10,
@@ -325,13 +325,13 @@ function App() {
                       <span style={{
                         marginLeft: 10,
                         fontSize: 13,
-                        color: todo.priority === 'Yüksek' ? '#ef4444' : todo.priority === 'Orta' ? '#f59e42' : '#22c55e',
+                        color: todo.priority === 'High' ? '#ef4444' : todo.priority === 'Medium' ? '#f59e42' : '#22c55e',
                         fontWeight: 600
                       }}>
                         {todo.priority}
                       </span>
                     )}
-            </span>
+                  </span>
                   <button
                     onClick={() => startEdit(todo)}
                     style={{
@@ -343,7 +343,7 @@ function App() {
                       padding: '6px 12px',
                       fontWeight: 600,
                       cursor: 'pointer'
-                    }}>Düzenle</button>
+                    }}>Edit</button>
                   <button
                     onClick={() => deleteTodo(todo._id)}
                     style={{
@@ -355,12 +355,12 @@ function App() {
                       padding: '6px 12px',
                       fontWeight: 600,
                       cursor: 'pointer'
-                    }}>Sil</button>
+                    }}>Delete</button>
                 </>
               )}
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

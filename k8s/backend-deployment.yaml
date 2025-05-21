@@ -13,25 +13,29 @@ spec:
         app: backend
     spec:
       containers:
-      - name: backend
-        image: gcr.io/extreme-wind-457613-b2/todo-backend:latest
-        ports:
-        - containerPort: 4000
-        env:
-        - name: MONGO_URI
-          value: "mongodb://34.55.204.147:27017/tododb"
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+        - name: backend
+          image: gcr.io/extreme-wind-457613-b2/todo-backend:latest
+          ports:
+            - containerPort: 4000
+          env:
+            - name: MONGO_URI
+              value: "mongodb://34.60.227.68:27017/tododb"  # <- static IP kullandığın VM'in adresi
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
 ---
+
 apiVersion: v1
 kind: Service
 metadata:
   name: backend
+  annotations:
+    cloud.google.com/load-balancer-ipv4-address: "backend-static-ip"  # <- GCP'de rezerve ettiğin static IP'nin adı
 spec:
   selector:
     app: backend

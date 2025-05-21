@@ -30,18 +30,18 @@ exports.notifyDueTasks = async (req, res) => {
       return;
     }
 
-    // E-posta gönderimi için transporter ayarları (örnek Gmail SMTP)
+    // E-posta gönderimi için transporter ayarları (SMTP)
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER,      // .env veya GCP env var olarak girilmeli
+        user: process.env.EMAIL_USER,      // .env ve GCP env 
         pass: process.env.EMAIL_PASS
       }
     });
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
-      to: process.env.NOTIFY_EMAIL,        // Bildirim almak istediğin e-posta
+      to: process.env.NOTIFY_EMAIL.split(',').map(email => email.trim()),        
       subject: 'Yarın bitmesi gereken görevler!',
       text: `Yarın bitmesi gereken görevler:\n\n${dueTasks.map(t => t.title).join('\n')}`
     };
