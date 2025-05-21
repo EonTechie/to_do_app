@@ -22,11 +22,11 @@ spec:
               value: "mongodb://34.60.227.68:27017/tododb"  # <- static IP kullandığın VM'in adresi
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "250m"
-            limits:
               memory: "512Mi"
               cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
 
 ---
 
@@ -44,3 +44,24 @@ spec:
       port: 4000
       targetPort: 4000
   type: LoadBalancer
+
+---
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
