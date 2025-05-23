@@ -1,3 +1,4 @@
+require('dotenv').config(); 
 const { MongoClient } = require('mongodb');
 
 exports.countCompletedTodos = async (req, res) => {

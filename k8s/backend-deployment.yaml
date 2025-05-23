@@ -3,7 +3,6 @@ kind: Deployment
 metadata:
   name: backend
 spec:
-  replicas: 2
   selector:
     matchLabels:
       app: backend
@@ -13,20 +12,33 @@ spec:
         app: backend
     spec:
       containers:
-        - name: backend 
+        - name: backend
           image: gcr.io/extreme-wind-457613-b2/todo-backend:latest
           ports:
             - containerPort: 4000
           env:
             - name: MONGO_URI
-              value: "mongodb://34.60.227.68:27017/tododb"  # <- static IP kullandığın VM'in adresi
+              value: "mongodb://34.60.227.68:27017/tododb"
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "500m"
-            limits:
-              memory: "1Gi"
-              cpu: "1000m"
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
 
 ---
 
@@ -34,8 +46,6 @@ apiVersion: v1
 kind: Service
 metadata:
   name: backend
-  annotations:
-    cloud.google.com/load-balancer-ipv4-address: "34.42.40.53"  # <- GCP'de rezerve ettiğin static IP'nin adı
 spec:
   selector:
     app: backend
@@ -56,12 +66,18 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: backend
-  minReplicas: 2
-  maxReplicas: 10
+  minReplicas: 3
+  maxReplicas: 15
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 60
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75

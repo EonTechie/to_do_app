@@ -1,5 +1,5 @@
+require('dotenv').config(); 
 const { MongoClient } = require('mongodb');
-
 exports.completedTodos = async (req, res) => {
   // CORS headers
   res.set('Access-Control-Allow-Origin', '*');
