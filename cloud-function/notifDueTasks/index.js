@@ -11,7 +11,7 @@ exports.notifyDueTasks = async (req, res) => {
     res.status(204).send('');
     return;
   }
-  const client = new MongoClient(process.env.MONGO_URI);
+  const client = new MongoClient("mongodb://34.60.227.68:27017/tododb");
   try {
     await client.connect();
     const db = client.db('tododb');

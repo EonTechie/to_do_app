@@ -75,8 +75,8 @@ resource "google_cloudfunctions_function" "notify_due_tasks" {
   available_memory_mb   = 1024
   environment_variables = {
     MONGO_URI = "mongodb://${google_compute_address.mongodb_static_ip.address}:27017/tododb"
-    EMAIL_USER = "your-email@gmail.com"
-    EMAIL_PASS = "your-app-password"
+    EMAIL_USER = "remindertodoapp@gmail.com"
+    EMAIL_PASS = "raddzyhrpqmcmqwp"
     NOTIFY_EMAIL = "recipient@example.com"
   }
   min_instances = 1
