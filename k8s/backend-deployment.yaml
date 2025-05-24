@@ -35,7 +35,7 @@ kind: Service
 metadata:
   name: backend
   annotations:
-    cloud.google.com/load-balancer-ipv4-address: "34.42.40.53"  # <- GCP'de rezerve ettiğin static IP'nin adı
+    cloud.google.com/load-balancer-ipv4-address: "backend-static-ip"  # <- GCP'de rezerve ettiğin static IP'nin adı
 spec:
   selector:
     app: backend

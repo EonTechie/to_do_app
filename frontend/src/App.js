@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const API_URL = 'http://34.72.124.68:4000/todos';
-
+const API_URL = 'http://104.154.173.61:4000/todos';
 const PRIORITIES = ['Low', 'Medium', 'High'];
 
 function App() {
@@ -16,22 +15,30 @@ function App() {
   const [completedCount, setCompletedCount] = useState(0);
   const [completedTodos, setCompletedTodos] = useState([]);
 
-  useEffect(() => {
+  const refreshTodos = () => {
     fetch(API_URL)
       .then(res => res.json())
       .then(setTodos);
-    // Fetch completed count and completed todos from Cloud Functions on mount
     fetch('https://us-central1-extreme-wind-457613-b2.cloudfunctions.net/countCompletedTodos')
       .then(res => res.json())
       .then(data => setCompletedCount(data.completedCount || 0));
     fetch('https://us-central1-extreme-wind-457613-b2.cloudfunctions.net/completedTodos')
       .then(res => res.json())
       .then(data => setCompletedTodos(data.completed || []));
+  };
+
+  useEffect(() => {
+    refreshTodos();
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(refreshTodos, 5000); // 5 saniyede bir güncelle
+    return () => clearInterval(interval);
   }, []);
 
   const addTodo = async () => {
     if (!title.trim()) return;
-    const res = await fetch(API_URL, {
+    await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -41,18 +48,10 @@ function App() {
         priority
       })
     });
-    const newTodo = await res.json();
-    setTodos([...todos, newTodo]);
     setTitle('');
     setDueDate('');
     setPriority('Medium');
-    // Fetch updated completed count and completed todos
-    fetch('https://us-central1-extreme-wind-457613-b2.cloudfunctions.net/countCompletedTodos')
-      .then(res => res.json())
-      .then(data => setCompletedCount(data.completedCount || 0));
-    fetch('https://us-central1-extreme-wind-457613-b2.cloudfunctions.net/completedTodos')
-      .then(res => res.json())
-      .then(data => setCompletedTodos(data.completed || []));
+    refreshTodos();
   };
 
   const toggleTodo = async (id, completed) => {
@@ -61,30 +60,9 @@ function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ completed: !completed })
     });
-    // Fetch updated todos
-    fetch(API_URL)
-      .then(res => res.json())
-      .then(setTodos);
-    // Fetch updated completed count and completed todos
-    fetch('https://us-central1-extreme-wind-457613-b2.cloudfunctions.net/countCompletedTodos')
-      .then(res => res.json())
-      .then(data => setCompletedCount(data.completedCount || 0));
-    fetch('https://us-central1-extreme-wind-457613-b2.cloudfunctions.net/completedTodos')
-      .then(res => res.json())
-      .then(data => setCompletedTodos(data.completed || []));
+    refreshTodos();
   };
 
-  const deleteTodo = async (id) => {
-    await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-    setTodos(todos.filter(todo => todo._id !== id));
-    // Fetch updated completed count and completed todos
-    fetch('https://us-central1-extreme-wind-457613-b2.cloudfunctions.net/countCompletedTodos')
-      .then(res => res.json())
-      .then(data => setCompletedCount(data.completedCount || 0));
-    fetch('https://us-central1-extreme-wind-457613-b2.cloudfunctions.net/completedTodos')
-      .then(res => res.json())
-      .then(data => setCompletedTodos(data.completed || []));
-  };
 
   const startEdit = (todo) => {
     setEditingId(todo._id);
@@ -97,11 +75,26 @@ function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: editTitle })
     });
-    setTodos(todos.map(todo => todo._id === id ? { ...todo, title: editTitle } : todo));
     setEditingId(null);
     setEditTitle('');
+    refreshTodos();
   };
 
+  const deleteAllCompleted = async () => {
+    await fetch(`${API_URL}/completed`, { method: 'DELETE' });
+    refreshTodos();
+  };
+
+  const deleteAllTasks = async () => {
+    await fetch(API_URL, { method: 'DELETE' });
+    refreshTodos();
+  };
+
+  
+  const deleteTodo = async (id) => {
+    await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+    refreshTodos();
+  };
   const filteredTodos = todos
     .filter(todo =>
       (filter === 'all' ||
@@ -187,6 +180,7 @@ function App() {
             Add
           </button>
         </div>
+
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           <button onClick={() => setFilter('all')}
             style={{
@@ -222,6 +216,7 @@ function App() {
               cursor: 'pointer'
             }}>Completed</button>
         </div>
+
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -235,20 +230,11 @@ function App() {
             marginBottom: 16
           }}
         />
+
         <div style={{ marginBottom: 12, color: '#6366f1', fontWeight: 600 }}>
           Total Tasks: {filteredTodos.length}
         </div>
-        <div style={{ color: '#22c55e', fontWeight: 600, marginBottom: 8 }}>
-          Completed Task Count: {completedCount}
-        </div>
-        <div style={{ color: '#6366f1', fontWeight: 600, marginBottom: 8 }}>
-          Completed Tasks:
-          <ul>
-            {completedTodos.map(todo => (
-              <li key={todo._id}>{todo.title}</li>
-            ))}
-          </ul>
-        </div>
+
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {filteredTodos.map(todo => (
             <li key={todo._id} style={{
@@ -361,6 +347,50 @@ function App() {
             </li>
           ))}
         </ul>
+
+        <div style={{ display: 'flex', gap: 10, margin: '16px 0 8px 0' }}>
+          <button
+            onClick={deleteAllCompleted}
+            disabled={completedCount === 0}
+            style={{
+              background: completedCount === 0 ? '#fca5a5' : '#ef4444',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 12px',
+              fontWeight: 600,
+              cursor: completedCount === 0 ? 'not-allowed' : 'pointer',
+              fontSize: 12
+            }}
+          >
+            Delete All Completed
+          </button>
+          <button
+            onClick={deleteAllTasks}
+            disabled={todos.length === 0}
+            style={{
+              background: todos.length === 0 ? '#a5b4fc' : '#6366f1',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 12px',
+              fontWeight: 600,
+              cursor: todos.length === 0 ? 'not-allowed' : 'pointer',
+              fontSize: 12
+            }}
+          >
+            Delete All Tasks
+          </button>
+        </div>
+
+        <div style={{ color: '#6366f1', fontWeight: 600, marginBottom: 8 }}>
+          Completed Tasks:
+          <ul>
+            {completedTodos.map(todo => (
+              <li key={todo._id}>{todo.title}</li>
+            ))}
+          </ul>
+        </div>
       </div>
     </div>
   );
