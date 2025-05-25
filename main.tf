@@ -1,133 +1,131 @@
+terraform {
+  required_version = ">= 1.0"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 4.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
+  }
+}
+
+
 provider "google" {
   project = var.project_id
   region  = var.region
   zone    = var.zone
 }
 
-# 1. GKE Cluster
-resource "google_container_cluster" "primary" {
-  name     = "todo-gke"
-  location = var.region
-  initial_node_count = 2
 
-  node_config {
-    machine_type = "e2-medium"
-    oauth_scopes = [
-      "https://www.googleapis.com/auth/cloud-platform"
-    ]
+
+resource "google_compute_network" "default" {
+  name = "example-network"
+
+  auto_create_subnetworks  = false
+  enable_ula_internal_ipv6 = true
+}
+
+resource "google_compute_subnetwork" "default" {
+  name = "example-subnetwork"
+
+  ip_cidr_range = "10.0.0.0/16"
+  region        = "us-central1"
+
+  stack_type       = "IPV4_IPV6"
+  ipv6_access_type = "INTERNAL" # Change to "EXTERNAL" if creating an external loadbalancer
+
+  network = google_compute_network.default.id
+  secondary_ip_range {
+    range_name    = "services-range"
+    ip_cidr_range = "192.168.0.0/24"
+  }
+
+  secondary_ip_range {
+    range_name    = "pod-ranges"
+    ip_cidr_range = "192.168.1.0/24"
   }
 }
 
-# 2. Compute Engine VM (MongoDB)
-resource "google_compute_instance" "mongo" {
-  name         = "mongo-vm"
-  machine_type = "e2-medium"
-  zone         = var.zone
+resource "google_container_cluster" "default" {
+  name = "example-autopilot-cluster"
+
+  location                 = "us-central1"
+  enable_autopilot         = true
+  enable_l4_ilb_subsetting = true
+
+  network    = google_compute_network.default.id
+  subnetwork = google_compute_subnetwork.default.id
+
+  ip_allocation_policy {
+    stack_type                    = "IPV4_IPV6"
+    services_secondary_range_name = google_compute_subnetwork.default.secondary_ip_range[0].range_name
+    cluster_secondary_range_name  = google_compute_subnetwork.default.secondary_ip_range[1].range_name
+  }
+
+  # Set `deletion_protection` to `true` will ensure that one cannot
+  # accidentally delete this instance by use of Terraform.
+
+}
+
+
+
+
+
+resource "google_compute_firewall" "allow_http" {
+  name    = "allow-http"
+  network = google_compute_network.default.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "443", "3000", "4000", "27017"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["http-server"]
+}
+
+# Static IP for MongoDB VM
+resource "google_compute_address" "mongodb_static_ip" {
+  name    = "mongodb-static-ip"
+  region  = var.region
+  address = "34.60.227.68"  # Sizin belirttiğiniz IP
+}
+
+# MongoDB VM resource'unu güncelle
+resource "google_compute_instance" "mongodb_vm" {
+  name         = "database-instance"
+  machine_type = "e2-highcpu-2"
+  zone         = "us-central1-c"
+  tags         = ["http-server"]
 
   boot_disk {
     initialize_params {
-      image = "debian-cloud/debian-11"
-      size  = 20
+      image = "debian-cloud/debian-11"  # Debian 11
+      size  = 10
     }
   }
 
   network_interface {
-    network = "default"
-    access_config {}
+    network = google_compute_network.default.name
+    access_config {
+      nat_ip = google_compute_address.mongodb_static_ip.address  # Static IP'yi kullan
+    }
   }
 
   metadata_startup_script = <<-EOT
     #!/bin/bash
-    sudo apt-get update
-    sudo apt-get install -y gnupg
-    wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | sudo apt-key add -
-    echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/debian buster/mongodb-org/6.0 main" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
-    sudo apt-get update
-    sudo apt-get install -y mongodb-org
-    sudo sed -i 's/bindIp: 127.0.0.1/bindIp: 0.0.0.0/' /etc/mongod.conf
-    sudo systemctl enable mongod
-    sudo systemctl start mongod
+    apt-get update
+    apt-get install -y gnupg curl
+    curl -fsSL https://pgp.mongodb.com/server-6.0.asc | gpg -o /usr/share/keyrings/mongodb-server-6.0.gpg --dearmor
+    echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/debian buster/mongodb-org/6.0 main" | tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+    apt-get update
+    apt-get install -y mongodb-org
+    systemctl start mongod
+    systemctl enable mongod
   EOT
-
-  tags = ["mongo"]
 }
 
-# 3. Firewall Rule for MongoDB
-resource "google_compute_firewall" "mongo" {
-  name    = "allow-mongo"
-  network = "default"
 
-  allow {
-    protocol = "tcp"
-    ports    = ["27017"]
-  }
-
-  source_ranges = ["0.0.0.0/0"] # Sadece test için, prod'da daralt!
-  target_tags   = ["mongo"]
-}
-
-# 4. Cloud Functions için Storage Bucket
-resource "google_storage_bucket" "function_bucket" {
-  name     = "${var.project_id}-function-bucket"
-  location = var.region
-  force_destroy = true
-}
-
-# 5. Cloud Function Kodlarını Yükle (Örnek: completedTodos)
-resource "google_storage_bucket_object" "completedTodos_zip" {
-  name   = "completedTodos.zip"
-  bucket = google_storage_bucket.function_bucket.name
-  source = "cloud-function/cfunc2.zip" # Kodunu zip'le ve bu path'e koy
-}
-
-resource "google_cloudfunctions_function" "completedTodos" {
-  name        = "completedTodos"
-  description = "Returns completed todos"
-  runtime     = "nodejs20"
-  region      = var.region
-  source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = google_storage_bucket_object.completedTodos_zip.name
-  entry_point = "completedTodos"
-  trigger_http = true
-  available_memory_mb = 256
-
-  environment_variables = {
-    MONGO_URI = "mongodb://${google_compute_instance.mongo.network_interface.0.access_config.0.nat_ip}:27017/tododb"
-  }
-}
-
-# 6. Cloud Scheduler Job (örnek)
-resource "google_service_account" "scheduler" {
-  account_id   = "scheduler-sa"
-  display_name = "Scheduler Service Account"
-}
-
-resource "google_project_iam_member" "function_invoker" {
-  project = var.project_id
-  role    = "roles/cloudfunctions.invoker"
-  member  = "serviceAccount:${google_service_account.scheduler.email}"
-}
-
-resource "google_cloud_scheduler_job" "notification" {
-  name             = "notification"
-  description      = "Trigger notification by e-mail 1 day before the task"
-  schedule         = "*/5 * * * *"
-  time_zone        = "Europe/Moscow"
-  http_target {
-    http_method = "POST"
-    uri         = google_cloudfunctions_function.completedTodos.https_trigger_url
-    oidc_token {
-      service_account_email = google_service_account.scheduler.email
-    }
-  }
-}
-
-# 7. Output MongoDB IP
-output "mongo_ip" {
-  value = google_compute_instance.mongo.network_interface[0].access_config[0].nat_ip
-}
-
-# 8. Variables
-variable "project_id" {}
-variable "region"    { default = "us-central1" }
-variable "zone"      { default = "us-central1-a" }
