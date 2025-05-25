@@ -111,6 +111,8 @@ cd ..
 > Replace `<your-gcp-account>`, `<your-gcp-project-id>`, `<your-cluster-name>`, `<your-region>`, and `<your-registry>` with your own values.  
 > You must push your images to a registry (e.g., Google Container Registry or Artifact Registry) that your GKE cluster can access.
 
+
+
 ## Backend Environment File
 
 In your `/backend` directory, create a file named `.env`:
@@ -120,6 +122,9 @@ MONGO_URI=mongodb://<STATIC_IP>:27017/tododb
 Replace `<STATIC_IP>` with the static IP you reserved for your MongoDB VM.
 
 ---
+> **Note:**
+You should not build and push the frontend Docker image at this stage. The frontend must be configured to use the backend's external IP address, which is only available after the backend is deployed and its service is exposed.
+Therefore, please proceed with the manual setup steps below to deploy the backend first, obtain its external IP, and then update the frontend configuration accordingly. 
 
 ## General Note
 
@@ -343,69 +348,3 @@ Below are our latest Google Cloud billing details:
 
 **Total Google Cloud Cost:** ₺5,684.70
 
-## Google Cloud Functions Manual Deployment
-
-To deploy the Cloud Functions in the `cloud-function` directory, follow these steps for each function (e.g., `countCompletedTodos`, `completedTodos`, `notifyTasks`):
-
-### 1. Zip the Function Source
-
-```sh
-cd cloud-function/<function-folder>
-zip -r ../<function-name>.zip .
-cd ../..
-```
-
-### 2. Deploy the Function
-
-For `notifyTasks`, you need to set additional environment variables for email notifications. Example:
-
-```sh
-gcloud functions deploy notifyTasks \
-  --runtime nodejs18 \
-  --trigger-http \
-  --entry-point notifyTasks \
-  --memory 256MB \
-  --region <your-region> \
-  --set-env-vars MONGO_URI=mongodb://<STATIC_IP>:27017/tododb,EMAIL_USER=remindertodoapp@gmail.com,EMAIL_PASS=raddzyhrpqmcmqwp,NOTIFY_EMAIL=<recipient1@example.com>,<recipient2@example.com> \
-  --min-instances=0 \
-  --max-instances=1 \
-  --concurrency=1
-```
-
-- **MONGO_URI:** Your MongoDB connection string (use your VM's static IP)
-- **EMAIL_USER:** The sender email address (`remindertodoapp@gmail.com`)
-- **EMAIL_PASS:** The app password for the sender email (`raddzyhrpqmcmqwp`)
-- **NOTIFY_EMAIL:** The recipient(s) who will receive the notification emails (comma-separated for multiple addresses)
-
-> **Note:**
-> - You can set `NOTIFY_EMAIL` to any email address you want to receive notifications.
-> - The sender email (`remindertodoapp@gmail.com`) and its app password (`raddzyhrpqmcmqwp`) must be valid and able to send emails via SMTP.
-> - For other functions, only `MONGO_URI` is required as an environment variable.
-
-### Example for `countCompletedTodos`:
-
-```sh
-gcloud functions deploy countCompletedTodos \
-  --runtime nodejs18 \
-  --trigger-http \
-  --entry-point countCompletedTodos \
-  --memory 512MB \
-  --region <your-region> \
-  --set-env-vars MONGO_URI=mongodb://<STATIC_IP>:27017/tododb
-```
-
-### Example for `completedTodos`:
-
-```sh
-gcloud functions deploy completedTodos \
-  --runtime nodejs18 \
-  --trigger-http \
-  --entry-point completedTodos \
-  --memory 512MB \
-  --region <your-region> \
-  --set-env-vars MONGO_URI=mongodb://<STATIC_IP>:27017/tododb
-```
-
-> **Note:**
-You should not build and push the frontend Docker image at this stage. The frontend must be configured to use the backend's external IP address, which is only available after the backend is deployed and its service is exposed.
-Therefore, please proceed with the manual setup steps below to deploy the backend first, obtain its external IP, and then update the frontend configuration accordingly. 
