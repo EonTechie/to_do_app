@@ -127,6 +127,9 @@ All these steps are required for a fresh Google Cloud project. The project is po
 
 ## Manual Deployment Steps (First Time Setup)
 
+> **Important:**
+> Do **not** build and push the frontend Docker image until you have deployed the backend and obtained its external IP address. The frontend must be configured with the backend's IP before building the image.
+
 1. **Backend Deployment**
    ```sh
    kubectl apply -f k8s/backend-deployment.yaml
@@ -153,7 +156,68 @@ All these steps are required for a fresh Google Cloud project. The project is po
 4. **Access Application**
    - Open browser and navigate to: `http://<FRONTEND-EXTERNAL-IP>:3000`
 
-> Note: This manual deployment process is provided as an alternative to Terraform deployment, which requires additional cluster setup. Our project is currently running on an Autopilot cluster, and the Terraform configuration may require adjustments for different cluster types.
+## Google Cloud Functions Manual Deployment
+
+To deploy the Cloud Functions in the `cloud-function` directory, follow these steps for each function (e.g., `countCompletedTodos`, `completedTodos`, `notifyTasks`):
+
+### 1. Zip the Function Source
+
+```sh
+cd cloud-function/<function-folder>
+zip -r ../<function-name>.zip .
+cd ../..
+```
+
+### 2. Deploy the Function
+
+For `notifyTasks`, you need to set additional environment variables for email notifications. Example:
+
+```sh
+gcloud functions deploy notifyTasks \
+  --runtime nodejs18 \
+  --trigger-http \
+  --entry-point notifyTasks \
+  --memory 256MB \
+  --region <your-region> \
+  --set-env-vars MONGO_URI=mongodb://<STATIC_IP>:27017/tododb,EMAIL_USER=remindertodoapp@gmail.com,EMAIL_PASS=raddzyhrpqmcmqwp,NOTIFY_EMAIL=<recipient1@example.com>,<recipient2@example.com> \
+  --min-instances=0 \
+  --max-instances=1 \
+  --concurrency=1
+```
+
+- **MONGO_URI:** Your MongoDB connection string (use your VM's static IP)
+- **EMAIL_USER:** The sender email address (`remindertodoapp@gmail.com`)
+- **EMAIL_PASS:** The app password for the sender email (`raddzyhrpqmcmqwp`)
+- **NOTIFY_EMAIL:** The recipient(s) who will receive the notification emails (comma-separated for multiple addresses)
+
+> **Note:**
+> - You can set `NOTIFY_EMAIL` to any email address you want to receive notifications.
+> - The sender email (`remindertodoapp@gmail.com`) and its app password (`raddzyhrpqmcmqwp`) must be valid and able to send emails via SMTP.
+> - For other functions, only `MONGO_URI` is required as an environment variable.
+
+### Example for `countCompletedTodos`:
+
+```sh
+gcloud functions deploy countCompletedTodos \
+  --runtime nodejs18 \
+  --trigger-http \
+  --entry-point countCompletedTodos \
+  --memory 512MB \
+  --region <your-region> \
+  --set-env-vars MONGO_URI=mongodb://<STATIC_IP>:27017/tododb
+```
+
+### Example for `completedTodos`:
+
+```sh
+gcloud functions deploy completedTodos \
+  --runtime nodejs18 \
+  --trigger-http \
+  --entry-point completedTodos \
+  --memory 512MB \
+  --region <your-region> \
+  --set-env-vars MONGO_URI=mongodb://<STATIC_IP>:27017/tododb
+```
 
 ## Branch Information
 
@@ -179,6 +243,9 @@ This repository contains Terraform configurations to deploy a complete To-Do app
 5. Docker (for building images)
 
 ## Project Structure
+
+> **Important:**
+> The provided Terraform configuration cannot create a GKE cluster from scratch if one does not already exist. You must create the cluster manually (via Google Cloud Console or CLI) before running `terraform apply`. Terraform can only manage resources inside an existing cluster.
 
 - **main.tf**: GCP network, subnetwork, GKE cluster, firewall, static IP, and MongoDB VM resources
 - **network.tf**: (if present) Network and firewall resources
@@ -276,10 +343,6 @@ Below are our latest Google Cloud billing details:
 
 **Total Google Cloud Cost:** ₺5,684.70
 
-> **Note:**  
-> We do **not** build and push the frontend Docker image at this stage. The frontend must be configured to use the backend's external IP address, which is only available after the backend is deployed and its service is exposed.  
-> Therefore, please proceed with the manual setup steps below to deploy the backend first, obtain its external IP, and then update the frontend configuration accordingly. 
-
 ## Google Cloud Functions Manual Deployment
 
 To deploy the Cloud Functions in the `cloud-function` directory, follow these steps for each function (e.g., `countCompletedTodos`, `completedTodos`, `notifyTasks`):
@@ -341,4 +404,8 @@ gcloud functions deploy completedTodos \
   --memory 512MB \
   --region <your-region> \
   --set-env-vars MONGO_URI=mongodb://<STATIC_IP>:27017/tododb
-``` 
+```
+
+> **Note:**
+You should not build and push the frontend Docker image at this stage. The frontend must be configured to use the backend's external IP address, which is only available after the backend is deployed and its service is exposed.
+Therefore, please proceed with the manual setup steps below to deploy the backend first, obtain its external IP, and then update the frontend configuration accordingly. 
