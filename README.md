@@ -1,5 +1,43 @@
 # To-Do App Terraform Deployment (MongoDB Version)
 
+## Manual Deployment Steps (First Time Setup)
+
+1. **Backend Deployment**
+   ```sh
+   kubectl apply -f k8s/backend-deployment.yaml
+   kubectl get svc backend  # Note the EXTERNAL-IP
+   ```
+
+2. **Frontend Configuration**
+   - Update `frontend/src/App.js` with the backend's EXTERNAL-IP:
+     ```javascript
+     const API_URL = 'http://<BACKEND-EXTERNAL-IP>:4000/todos';
+     ```
+
+3. **Frontend Deployment**
+   ```sh
+   # Build and push frontend image
+   docker build -t your-registry/todo-frontend:latest ./frontend
+   docker push your-registry/todo-frontend:latest
+   
+   # Deploy frontend
+   kubectl apply -f k8s/frontend-deployment.yaml
+   kubectl get svc frontend  # Note the EXTERNAL-IP
+   ```
+
+4. **Access Application**
+   - Open browser and navigate to: `http://<FRONTEND-EXTERNAL-IP>:3000`
+
+> Note: This manual deployment process is provided as an alternative to Terraform deployment, which requires additional cluster setup. Our project is currently running on an Autopilot cluster, and the Terraform configuration may require adjustments for different cluster types.
+
+## Branch Information
+
+- **main**: Contains our initial setup and basic configuration
+- **optimization**: Contains our second configuration with performance improvements
+- **optimization2**: Contains our latest configurations and optimizations
+
+> Note: In addition to these three branches, we had many other configurations and performed deployments and tests with them. We did not create a separate branch for every configuration. We ran more than 5 hours of Locust performance tests and frequently changed and tested different configs. We also actively used Google Cloud Monitoring and Observability dashboards during our work.
+
 This repository contains Terraform configurations to deploy a complete To-Do application on Google Cloud Platform (GCP) using **MongoDB** as the database.
 
 ## Prerequisites
@@ -93,4 +131,20 @@ terraform destroy
 
 ---
 
-> This project is fully containerized and cloud-native, using MongoDB as the primary database for all services. 
+> This project is fully containerized and cloud-native, using MongoDB as the primary database for all services.
+
+## Google Cloud Billing Details
+
+Below are our latest Google Cloud billing details:
+
+| Service                                   | Cost      |
+|--------------------------------------------|-----------|
+| Cloud Run                                 | ₺0.04     |
+| Artifact Registry                         | ₺0.00     |
+| Cloud Monitoring                          | ₺70.64    |
+| VM Manager                                | ₺13.37    |
+| Compute Engine                            | ₺878.23   |
+| Container Registry Vulnerability Scanning | ₺2,068.32 |
+| Kubernetes Engine                         | ₺1,618.16 |
+| Networking                                | ₺291.45   |
+| Cloud Run Functions                       | ₺744.49   | 
