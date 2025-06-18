@@ -1,3 +1,5 @@
+This self-developed project demonstrates end-to-end cloud-native architecture, integrating container orchestration, serverless design, infrastructure-as-code, and scalable performance evaluation on Google Cloud. All configurations, monitoring setups, and deployment scripts are included and reproducible.
+
 ## MongoDB VM and Static IP Setup
 
 To run this project from scratch, you must manually create a MongoDB VM with a static IP and open the required firewall ports.
